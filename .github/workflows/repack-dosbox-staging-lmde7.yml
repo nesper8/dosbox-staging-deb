@@ -1,9 +1,7 @@
-name: Repack DOSBox Staging as .deb
+name: Repack DOSBox Staging as .deb (LMDE 7)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 9 * * 1'  # Every Monday at 9:00 AM UTC
 
 jobs:
   repack:
@@ -119,7 +117,7 @@ jobs:
           body: |
             Unofficial `.deb` repack of [DOSBox Staging ${{ steps.release.outputs.version }}](https://github.com/dosbox-staging/dosbox-staging/releases/tag/v${{ steps.release.outputs.version }}).
 
-            Built automatically from the upstream Linux tarball on Debian Trixie.
+            Built on Debian Trixie — compatible with **LMDE 7**.
 
             **Install:**
             ```
