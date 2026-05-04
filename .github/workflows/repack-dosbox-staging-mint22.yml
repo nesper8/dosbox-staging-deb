@@ -1,0 +1,133 @@
+name: Repack DOSBox Staging as .deb (Linux Mint 22.3)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 AM UTC
+
+jobs:
+  repack:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:24.04
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y curl jq dpkg gzip
+
+      - name: Get latest DOSBox Staging release info
+        id: release
+        run: |
+          RELEASE_JSON=$(curl -s https://api.github.com/repos/dosbox-staging/dosbox-staging/releases/latest)
+          VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name' | sed 's/^v//')
+          TARBALL_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | test("dosbox-staging-linux.*\\.tar\\.gz$")) | .browser_download_url')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tarball_url=$TARBALL_URL" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+          echo "Tarball URL: $TARBALL_URL"
+
+      - name: Download and extract upstream tarball
+        run: |
+          curl -L "${{ steps.release.outputs.tarball_url }}" -o dosbox-staging.tar.gz
+          tar -xzf dosbox-staging.tar.gz
+          mv dosbox-staging-linux* dosbox-staging-linux
+
+      - name: Create .deb directory structure
+        run: |
+          mkdir -p dosbox-staging-deb/DEBIAN
+          mkdir -p dosbox-staging-deb/usr/bin
+          mkdir -p dosbox-staging-deb/usr/share/applications
+          mkdir -p dosbox-staging-deb/usr/share/doc/dosbox-staging/licenses
+          mkdir -p dosbox-staging-deb/usr/share/man/man1
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/16x16/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/22x22/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/24x24/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/32x32/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/48x48/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/96x96/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/128x128/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/256x256/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/512x512/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/1024x1024/apps
+          mkdir -p dosbox-staging-deb/usr/share/icons/hicolor/scalable/apps
+          mkdir -p dosbox-staging-deb/usr/share/dosbox-staging
+
+      - name: Copy files into package tree
+        run: |
+          cp dosbox-staging-linux/dosbox \
+             dosbox-staging-deb/usr/bin/dosbox-staging
+          chmod 755 dosbox-staging-deb/usr/bin/dosbox-staging
+
+          cp dosbox-staging-linux/desktop/org.dosbox-staging.dosbox-staging.desktop \
+             dosbox-staging-deb/usr/share/applications/
+
+          cp dosbox-staging-linux/doc/manual.txt \
+             dosbox-staging-deb/usr/share/doc/dosbox-staging/
+          cp dosbox-staging-linux/LICENSE \
+             dosbox-staging-deb/usr/share/doc/dosbox-staging/copyright
+          cp dosbox-staging-linux/doc/licenses/* \
+             dosbox-staging-deb/usr/share/doc/dosbox-staging/licenses/
+
+          cp dosbox-staging-linux/man/dosbox.1 \
+             dosbox-staging-deb/usr/share/man/man1/dosbox-staging.1
+          gzip -9 dosbox-staging-deb/usr/share/man/man1/dosbox-staging.1
+
+          for SIZE in 16x16 22x22 24x24 32x32 48x48 96x96 128x128 256x256 512x512 1024x1024; do
+            cp dosbox-staging-linux/icons/hicolor/${SIZE}/apps/* \
+               dosbox-staging-deb/usr/share/icons/hicolor/${SIZE}/apps/
+          done
+          cp dosbox-staging-linux/icons/hicolor/scalable/apps/* \
+             dosbox-staging-deb/usr/share/icons/hicolor/scalable/apps/
+
+          cp -r dosbox-staging-linux/resources/. \
+             dosbox-staging-deb/usr/share/dosbox-staging/
+
+          sed -i 's|^Exec=.*|Exec=dosbox-staging|' \
+            dosbox-staging-deb/usr/share/applications/org.dosbox-staging.dosbox-staging.desktop
+
+      - name: Write DEBIAN/control
+        run: |
+          ARCH=$(dpkg --print-architecture)
+          cat > dosbox-staging-deb/DEBIAN/control << EOF
+          Package: dosbox-staging
+          Version: ${{ steps.release.outputs.version }}
+          Section: games
+          Priority: optional
+          Architecture: ${ARCH}
+          Depends: libc6, libstdc++6, libgl1, libasound2, libx11-6, libxcb1, libxau6, libxdmcp6
+          Maintainer: Unofficial Repack <noreply@github.com>
+          Description: DOSBox Staging - DOS emulator
+           DOSBox Staging is a fork of DOSBox with modern features and fixes.
+           It emulates an IBM PC compatible computer running DOS.
+          EOF
+          sed -i 's/^          //' dosbox-staging-deb/DEBIAN/control
+          chmod 644 dosbox-staging-deb/DEBIAN/control
+
+      - name: Build .deb
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          ARCH=$(dpkg --print-architecture)
+          DEB_NAME="dosbox-staging_${VERSION}_${ARCH}_linuxmint22.deb"
+          dpkg-deb --root-owner-group --build dosbox-staging-deb "$DEB_NAME"
+          echo "deb_name=$DEB_NAME" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release and upload .deb
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release.outputs.version }}-mint22
+          name: DOSBox Staging ${{ steps.release.outputs.version }} for Linux Mint 22.3 (unofficial .deb repack)
+          body: |
+            Unofficial `.deb` repack of [DOSBox Staging ${{ steps.release.outputs.version }}](https://github.com/dosbox-staging/dosbox-staging/releases/tag/v${{ steps.release.outputs.version }}).
+
+            Built on Ubuntu 24.04 (Noble Numbat) — compatible with **Linux Mint 22.x**.
+
+            **Install:**
+            ```
+            sudo dpkg -i ${{ env.deb_name }}
+            sudo apt-get install -f   # fix any missing deps
+            ```
+          files: ${{ env.deb_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
