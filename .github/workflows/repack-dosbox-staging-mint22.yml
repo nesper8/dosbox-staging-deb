@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y curl jq dpkg gzip
+          DEBIAN_FRONTEND=noninteractive apt-get install -y curl jq dpkg gzip xz-utils
 
       - name: Get latest DOSBox Staging release info
         id: release
