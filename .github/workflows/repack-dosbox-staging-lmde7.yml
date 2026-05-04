@@ -20,7 +20,7 @@ jobs:
         run: |
           RELEASE_JSON=$(curl -s https://api.github.com/repos/dosbox-staging/dosbox-staging/releases/latest)
           VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name' | sed 's/^v//')
-          TARBALL_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | test("dosbox-staging-linux.*\\.tar\\.gz$")) | .browser_download_url')
+          TARBALL_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | test("dosbox-staging-linux.*\\.tar\\.xz$")) | .browser_download_url')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tarball_url=$TARBALL_URL" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
@@ -28,8 +28,8 @@ jobs:
 
       - name: Download and extract upstream tarball
         run: |
-          curl -L "${{ steps.release.outputs.tarball_url }}" -o dosbox-staging.tar.gz
-          tar -xzf dosbox-staging.tar.gz
+          curl -L "${{ steps.release.outputs.tarball_url }}" -o dosbox-staging.tar.xz
+          tar -xJf dosbox-staging.tar.xz
           mv dosbox-staging-linux* dosbox-staging-linux
 
       - name: Create .deb directory structure
