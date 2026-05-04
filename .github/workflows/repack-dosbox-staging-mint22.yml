@@ -2,8 +2,6 @@ name: Repack DOSBox Staging as .deb (Linux Mint 22.3)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 9 * * 1'  # Every Monday at 9:00 AM UTC
 
 jobs:
   repack:
