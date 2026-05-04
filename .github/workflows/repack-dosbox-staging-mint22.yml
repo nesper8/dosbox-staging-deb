@@ -126,6 +126,7 @@ jobs:
             sudo dpkg -i ${{ env.deb_name }}
             sudo apt-get install -f   # fix any missing deps
             ```
+            Or install with Package Installer
           files: ${{ env.deb_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -105,15 +105,15 @@ jobs:
         run: |
           VERSION="${{ steps.release.outputs.version }}"
           ARCH=$(dpkg --print-architecture)
-          DEB_NAME="dosbox-staging_${VERSION}_${ARCH}.deb"
+          DEB_NAME="dosbox-staging_${VERSION}_${ARCH}_lmde7.deb"
           dpkg-deb --root-owner-group --build dosbox-staging-deb "$DEB_NAME"
           echo "deb_name=$DEB_NAME" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release and upload .deb
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.release.outputs.version }}
-          name: DOSBox Staging ${{ steps.release.outputs.version }} (unofficial .deb repack)
+          tag_name: v${{ steps.release.outputs.version }}-lmde7
+          name: DOSBox Staging ${{ steps.release.outputs.version }} for LMDE 7 (unofficial .deb repack)
           body: |
             Unofficial `.deb` repack of [DOSBox Staging ${{ steps.release.outputs.version }}](https://github.com/dosbox-staging/dosbox-staging/releases/tag/v${{ steps.release.outputs.version }}).
 
@@ -124,6 +124,7 @@ jobs:
             sudo dpkg -i ${{ env.deb_name }}
             sudo apt-get install -f   # fix any missing deps
             ```
+            Or install with Package Installer
           files: ${{ env.deb_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
